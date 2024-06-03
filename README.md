@@ -1,15 +1,21 @@
-# Foundry DeFi Stablecoin
+# Foundry DeFi 
 
-# About
+Foundry Defi is a project that creates an ERC20 stablecoin and then allows users to deposit WETH and WBTC in exchange for a token that will be pegged to the USD.
 
-This project is meant to be a stablecoin where users can deposit WETH and WBTC in exchange for a token that will be pegged to the USD.
+by Taki Baker Alyasri
 
-- [Foundry DeFi Stablecoin](#foundry-defi-stablecoin)
-- [About](#about)
+- GitHub: [hadesbaker](https://www.github.com/hadesbaker)
+- Twitter: [hadesbaker](https://www.twitter.com/hadesbaker)
+- LinkedIn: [Taki Baker](https://www.linkedin.com/in/taki-baker-4a60851a5/)
+- Portfolio: [takibaker.netlify.app](https://takibaker.netlify.app)
+  
+
+# Table of Contents
+- [Foundry DeFi](#foundry-defi)
+- [Table of Contents](#table-of-contents)
 - [Getting Started](#getting-started)
   - [Requirements](#requirements)
   - [Quickstart](#quickstart)
-    - [Optional Gitpod](#optional-gitpod)
 - [Updates](#updates)
 - [Usage](#usage)
   - [Start a local node](#start-a-local-node)
@@ -21,8 +27,6 @@ This project is meant to be a stablecoin where users can deposit WETH and WBTC i
   - [Scripts](#scripts)
   - [Estimate gas](#estimate-gas)
 - [Formatting](#formatting)
-- [Slither](#slither)
-- [Thank you!](#thank-you)
 
 # Getting Started
 
@@ -36,7 +40,7 @@ This project is meant to be a stablecoin where users can deposit WETH and WBTC i
 ## Quickstart
 
 ```
-git clone https://github.com/hadesbaker/foundry-defi
+git clone https://github.com/hadesbaker/foundry-defi.git
 cd foundry-defi
 forge build
 ```
@@ -145,10 +149,4 @@ To run code formatting:
 
 ```
 forge fmt
-```
-
-# Slither
-
-```
-slither :; slither . --config-file slither.config.json
 ```
