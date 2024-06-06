@@ -25,12 +25,15 @@ contract HSCEngine is ReentrancyGuard {
     error HSCEngine__TokenAddressesAndPriceFeedAddressesMustBeSameLength();
     error HSCEngine__NotAllowedToken();
     error HSCEngine__TransferFailed();
+    error HSCEngine__BreaksHealthFactor(uint256 healthFactor);
+    error HSCEngine__MintFailed();
 
     //////// STATE VARIABLES ////////
     uint256 private constant _ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant _PRECISION = 1e18;
     uint256 private constant _LIQUIDATION_THRESHOLD = 50;
     uint256 private constant _LIQUIDATION_PRECISION = 100;
+    uint256 private constant _MIN_HEALTH_FACTOR = 1;
 
     mapping(address token => address priceFeed)
         private _tokenAddressToPriceFeedAddress;
@@ -133,6 +136,10 @@ contract HSCEngine is ReentrancyGuard {
     ) external moreThanZero(amountHscToMint) nonReentrant {
         _hscMinted[msg.sender] += amountHscToMint;
         _revertIfHealthFactorIsBroken(msg.sender);
+        bool minted = _hsc.mint(msg.sender, amountHscToMint);
+        if (!minted) {
+            revert HSCEngine__MintFailed();
+        }
     }
 
     ////////
@@ -170,7 +177,12 @@ contract HSCEngine is ReentrancyGuard {
     }
 
     ////////
-    function _revertIfHealthFactorIsBroken(address user) internal view {}
+    function _revertIfHealthFactorIsBroken(address user) internal view {
+        uint256 userHealthFactor = _healthFactor(user);
+        if (userHealthFactor < _MIN_HEALTH_FACTOR) {
+            revert HSCEngine__BreaksHealthFactor(userHealthFactor);
+        }
+    }
 
     //////// PUBLIC/EXTERNAL VIEW FUNCTIONS ////////
     function getAccountCollateralValue(
