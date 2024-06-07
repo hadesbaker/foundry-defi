@@ -9,10 +9,10 @@ import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 
 contract HSCEngineTest is Test {
-    DeployHSC deployer;
-    HadesStableCoin hadesStableCoin;
-    HSCEngine hscEngine;
-    HelperConfig helperConfig;
+    DeployHSC public deployer;
+    HadesStableCoin public hadesStableCoin;
+    HSCEngine public hscEngine;
+    HelperConfig public helperConfig;
 
     address public ethUsdPriceFeed;
     address public btcUsdPriceFeed;

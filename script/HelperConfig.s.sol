@@ -41,7 +41,7 @@ contract HelperConfig is Script {
             wbtcUsdPriceFeed: 0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43, // BTC/USD
             weth: 0xdd13E55209Fd76AfE204dBda4007C227904f0a81, // WETH contract address
             wbtc: 0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063, // WBTC contract address
-            deployerKey: vm.envUint("HADES_PRIVATE_KEY")
+            deployerKey: vm.envUint("ACHILLES_PRIVATE_KEY")
         });
     }
 
