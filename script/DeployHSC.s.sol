@@ -11,7 +11,7 @@ contract DeployHSC is Script {
     address[] public priceFeedAddresses;
 
     function run() external returns (HadesStableCoin, HSCEngine, HelperConfig) {
-        HelperConfig helperConfig = new HelperConfig(); // This comes with our mocks!
+        HelperConfig helperConfig = new HelperConfig();
 
         (
             address wethUsdPriceFeed,
@@ -20,6 +20,7 @@ contract DeployHSC is Script {
             address wbtc,
             uint256 deployerKey
         ) = helperConfig.activeNetworkConfig();
+
         tokenAddresses = [weth, wbtc];
         priceFeedAddresses = [wethUsdPriceFeed, wbtcUsdPriceFeed];
 
@@ -32,6 +33,7 @@ contract DeployHSC is Script {
         );
         hadesStableCoin.transferOwnership(address(hscEngine));
         vm.stopBroadcast();
+
         return (hadesStableCoin, hscEngine, helperConfig);
     }
 }
