@@ -26,6 +26,14 @@ contract HSCEngineTest is Test {
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
     uint256 public constant AMOUNT_TO_MINT = 100 ether;
 
+    modifier depositedCollateral() {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(hscEngine), AMOUNT_COLLATERAL);
+        hscEngine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
     function setUp() public {
         deployer = new DeployHSC();
         (hadesStableCoin, hscEngine, helperConfig) = deployer.run();
@@ -45,13 +53,36 @@ contract HSCEngineTest is Test {
         ERC20Mock(wbtc).mint(USER, STARTING_USER_BALANCE);
     }
 
+    //////// CONSTRUCTOR TESTS ////////
+    address[] public tokenAddresses;
+    address[] public feedAddresses;
+
+    function testRevertsIfTokenLengthDoesntMatchPriceFeeds() public {
+        tokenAddresses.push(weth);
+        feedAddresses.push(ethUsdPriceFeed);
+        feedAddresses.push(btcUsdPriceFeed);
+
+        vm.expectRevert(
+            HSCEngine
+                .HSCEngine__TokenAddressesAndPriceFeedAddressesMustBeSameLength
+                .selector
+        );
+
+        new HSCEngine(tokenAddresses, feedAddresses, address(hadesStableCoin));
+    }
+
     //////// PRICE TESTS ////////
     function testGetUsdValue() public {
         uint256 ethAmount = 15e18;
         uint256 expectedUsd = 30_000e18;
         uint256 actualUsd = hscEngine.getUsdValue(weth, ethAmount);
-
         assertEq(expectedUsd, actualUsd);
+    }
+
+    function testGetTokenAmountFromUsd() public {
+        uint256 expectedWeth = 0.05 ether;
+        uint256 amountWeth = hscEngine.getTokenAmountFromUsd(weth, 100 ether);
+        assertEq(amountWeth, expectedWeth);
     }
 
     //////// DEPOSIT COLLATERAL TESTS ////////
@@ -62,5 +93,40 @@ contract HSCEngineTest is Test {
         vm.expectRevert(HSCEngine.HSCEngine__MustBeMoreThanZero.selector);
         hscEngine.depositCollateral(weth, 0);
         vm.stopPrank();
+    }
+
+    function testRevertsWithUnapprovedCollateral() public {
+        ERC20Mock randToken = new ERC20Mock(
+            "RAN",
+            "RAN",
+            USER,
+            STARTING_USER_BALANCE
+        );
+
+        vm.startPrank(USER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                HSCEngine.HSCEngine__NotAllowedToken.selector,
+                address(randToken)
+            )
+        );
+        hscEngine.depositCollateral(address(randToken), AMOUNT_COLLATERAL);
+        vm.stopPrank();
+    }
+
+    function testCanDepositedCollateralAndGetAccountInfo()
+        public
+        depositedCollateral
+    {
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = hscEngine
+            .getAccountInformation(USER);
+
+        uint256 expectedDepositedAmount = hscEngine.getTokenAmountFromUsd(
+            weth,
+            collateralValueInUsd
+        );
+
+        assertEq(totalDscMinted, 0);
+        assertEq(expectedDepositedAmount, AMOUNT_COLLATERAL);
     }
 }
