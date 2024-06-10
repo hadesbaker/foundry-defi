@@ -27,13 +27,16 @@ contract HSCEngine is ReentrancyGuard {
     error HSCEngine__TransferFailed();
     error HSCEngine__BreaksHealthFactor(uint256 healthFactor);
     error HSCEngine__MintFailed();
+    error HSCEngine__HealthFactorOkay();
+    error HSCEngine__HealthFactorNotImproved();
 
     //////// STATE VARIABLES ////////
     uint256 private constant _ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant _PRECISION = 1e18;
     uint256 private constant _LIQUIDATION_THRESHOLD = 50;
     uint256 private constant _LIQUIDATION_PRECISION = 100;
-    uint256 private constant _MIN_HEALTH_FACTOR = 1;
+    uint256 private constant _MIN_HEALTH_FACTOR = 1e18;
+    uint256 private constant _LIQUIDATION_BONUS = 10;
 
     mapping(address token => address priceFeed)
         private _tokenAddressToPriceFeedAddress;
@@ -51,6 +54,13 @@ contract HSCEngine is ReentrancyGuard {
         address indexed user,
         address indexed token,
         uint256 indexed amount
+    );
+
+    event CollateralRedeemed(
+        address indexed redeemFrom,
+        address indexed redeemTo,
+        address token,
+        uint256 amount
     );
 
     //////// MODIFIERS ////////
@@ -91,14 +101,21 @@ contract HSCEngine is ReentrancyGuard {
     }
 
     //////// EXTERNAL FUNCTIONS ////////
-    function depositCollateralAndMintHsc() external {}
+    function depositCollateralAndMintHsc(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountHscToMint
+    ) external {
+        depositCollateral(tokenCollateralAddress, amountCollateral);
+        mintHsc(amountHscToMint);
+    }
 
     ////////
     function depositCollateral(
         address tokenCollateralAddress,
         uint256 amountCollateral
     )
-        external
+        public
         moreThanZero(amountCollateral)
         isAllowedToken(tokenCollateralAddress)
         nonReentrant
@@ -125,15 +142,44 @@ contract HSCEngine is ReentrancyGuard {
     }
 
     ////////
-    function redeemCollateralForHsc() external {}
+    function redeemCollateralForHsc(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountHscToBurn
+    ) external {
+        _burnHsc(amountHscToBurn, msg.sender, msg.sender);
+        _redeemCollateral(
+            tokenCollateralAddress,
+            amountCollateral,
+            msg.sender,
+            msg.sender
+        );
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     ////////
-    function redeemCollateral() external {}
+    function redeemCollateral(
+        address tokenCollateralAddress,
+        uint256 amountCollateral
+    )
+        external
+        moreThanZero(amountCollateral)
+        nonReentrant
+        isAllowedToken(tokenCollateralAddress)
+    {
+        _redeemCollateral(
+            tokenCollateralAddress,
+            amountCollateral,
+            msg.sender,
+            msg.sender
+        );
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     ////////
     function mintHsc(
         uint256 amountHscToMint
-    ) external moreThanZero(amountHscToMint) nonReentrant {
+    ) public moreThanZero(amountHscToMint) nonReentrant {
         _hscMinted[msg.sender] += amountHscToMint;
         _revertIfHealthFactorIsBroken(msg.sender);
         bool minted = _hsc.mint(msg.sender, amountHscToMint);
@@ -143,10 +189,98 @@ contract HSCEngine is ReentrancyGuard {
     }
 
     ////////
-    function burnHsc() external {}
+    function burnHsc(uint256 amount) external moreThanZero(amount) {
+        _burnHsc(amount, msg.sender, msg.sender);
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     ////////
-    function liquidate() external {}
+    function liquidate(
+        address collateral,
+        address user,
+        uint256 debtToCover
+    ) external moreThanZero(debtToCover) nonReentrant {
+        uint256 startingUserHealthFactor = _healthFactor(user);
+
+        if (startingUserHealthFactor >= _MIN_HEALTH_FACTOR) {
+            revert HSCEngine__HealthFactorOkay();
+        }
+
+        uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(
+            collateral,
+            debtToCover
+        );
+
+        uint256 bonusCollateral = (tokenAmountFromDebtCovered *
+            _LIQUIDATION_BONUS) / _LIQUIDATION_PRECISION;
+
+        uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered +
+            bonusCollateral;
+
+        _redeemCollateral(
+            collateral,
+            totalCollateralToRedeem,
+            user,
+            msg.sender
+        );
+
+        _burnHsc(debtToCover, user, msg.sender);
+
+        uint256 endingUserHealthFactor = _healthFactor(user);
+
+        if (endingUserHealthFactor <= startingUserHealthFactor) {
+            revert HSCEngine__HealthFactorNotImproved();
+        }
+
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
+
+    //////// PRIVATE FUNCTIONS ////////
+    function _redeemCollateral(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        address from,
+        address to
+    ) private {
+        _collateralDeposited[from][tokenCollateralAddress] -= amountCollateral;
+
+        emit CollateralRedeemed(
+            from,
+            to,
+            tokenCollateralAddress,
+            amountCollateral
+        );
+
+        bool success = IERC20(tokenCollateralAddress).transfer(
+            to,
+            amountCollateral
+        );
+
+        if (!success) {
+            revert HSCEngine__TransferFailed();
+        }
+    }
+
+    ////////
+    function _burnHsc(
+        uint256 amountHscToBurn,
+        address onBehalfOf,
+        address hscFrom
+    ) private {
+        _hscMinted[onBehalfOf] -= amountHscToBurn;
+
+        bool success = _hsc.transferFrom(
+            hscFrom,
+            address(this),
+            amountHscToBurn
+        );
+
+        if (!success) {
+            revert HSCEngine__TransferFailed();
+        }
+
+        _hsc.burn(amountHscToBurn);
+    }
 
     //////// PRIVATE/INTERNAL VIEW FUNCTIONS ////////
     function _getAccountInformation(
@@ -185,6 +319,23 @@ contract HSCEngine is ReentrancyGuard {
     }
 
     //////// PUBLIC/EXTERNAL VIEW FUNCTIONS ////////
+    function getTokenAmountFromUsd(
+        address token,
+        uint256 usdAmountInWei
+    ) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            _tokenAddressToPriceFeedAddress[token]
+        );
+
+        (, int256 price, , , ) = priceFeed.latestRoundData();
+
+        uint256 tokenAmount = ((usdAmountInWei * _PRECISION) /
+            (uint256(price) * _ADDITIONAL_FEED_PRECISION));
+
+        return tokenAmount;
+    }
+
+    ////////
     function getAccountCollateralValue(
         address user
     ) public view returns (uint256 totalCollateralValueInUsd) {
