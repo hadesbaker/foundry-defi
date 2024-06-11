@@ -10,8 +10,9 @@ import {HSCEngine} from "../../src/HSCEngine.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 
-contract OpenInvariantsTest is StdInvariant, Test {
+contract Invariants is StdInvariant, Test {
     DeployHSC public deployer;
     HadesStableCoin public hadesStableCoin;
     HSCEngine public hscEngine;
@@ -33,8 +34,12 @@ contract OpenInvariantsTest is StdInvariant, Test {
 
     function invariant_protocolMustHaveMoreValueThanTotalSupply() public view {
         uint256 totalSupply = hadesStableCoin.totalSupply();
-        uint256 totalWethDeposited = IERC20(weth).balanceOf(address(hscEngine));
-        uint256 totalWbtcDeposited = IERC20(wbtc).balanceOf(address(hscEngine));
+        uint256 totalWethDeposited = ERC20Mock(weth).balanceOf(
+            address(hscEngine)
+        );
+        uint256 totalWbtcDeposited = ERC20Mock(wbtc).balanceOf(
+            address(hscEngine)
+        );
 
         uint256 wethValue = hscEngine.getUsdValue(weth, totalWethDeposited);
         uint256 wbtcValue = hscEngine.getUsdValue(wbtc, totalWbtcDeposited);
