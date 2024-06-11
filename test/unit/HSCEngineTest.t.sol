@@ -7,8 +7,9 @@ import {HadesStableCoin} from "../../src/HadesStableCoin.sol";
 import {HSCEngine} from "../../src/HSCEngine.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 
-contract HSCEngineTest is Test {
+contract HSCEngineTest is StdCheats, Test {
     DeployHSC public deployer;
     HadesStableCoin public hadesStableCoin;
     HSCEngine public hscEngine;
@@ -20,14 +21,14 @@ contract HSCEngineTest is Test {
     address public wbtc;
     uint256 public deployerKey;
 
-    address public USER = makeAddr("user");
+    address public user = makeAddr("user");
     uint256 public constant STARTING_USER_BALANCE = 10 ether;
 
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
     uint256 public constant AMOUNT_TO_MINT = 100 ether;
 
     modifier depositedCollateral() {
-        vm.startPrank(USER);
+        vm.startPrank(user);
         ERC20Mock(weth).approve(address(hscEngine), AMOUNT_COLLATERAL);
         hscEngine.depositCollateral(weth, AMOUNT_COLLATERAL);
         vm.stopPrank();
@@ -37,6 +38,7 @@ contract HSCEngineTest is Test {
     function setUp() public {
         deployer = new DeployHSC();
         (hadesStableCoin, hscEngine, helperConfig) = deployer.run();
+
         (
             ethUsdPriceFeed,
             btcUsdPriceFeed,
@@ -46,11 +48,11 @@ contract HSCEngineTest is Test {
         ) = helperConfig.activeNetworkConfig();
 
         if (block.chainid == 31337) {
-            vm.deal(USER, STARTING_USER_BALANCE);
+            vm.deal(user, STARTING_USER_BALANCE);
         }
 
-        ERC20Mock(weth).mint(USER, STARTING_USER_BALANCE);
-        ERC20Mock(wbtc).mint(USER, STARTING_USER_BALANCE);
+        // ERC20Mock(weth).mint(user, STARTING_USER_BALANCE);
+        // ERC20Mock(wbtc).mint(user, STARTING_USER_BALANCE);
     }
 
     //////// CONSTRUCTOR TESTS ////////
@@ -87,7 +89,7 @@ contract HSCEngineTest is Test {
 
     //////// DEPOSIT COLLATERAL TESTS ////////
     function testRevertsIfCollateralZero() public {
-        vm.startPrank(USER);
+        vm.startPrank(user);
         ERC20Mock(weth).approve(address(hscEngine), AMOUNT_COLLATERAL);
 
         vm.expectRevert(HSCEngine.HSCEngine__MustBeMoreThanZero.selector);
@@ -99,11 +101,11 @@ contract HSCEngineTest is Test {
         ERC20Mock randToken = new ERC20Mock(
             "RAN",
             "RAN",
-            USER,
+            user,
             STARTING_USER_BALANCE
         );
 
-        vm.startPrank(USER);
+        vm.startPrank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
                 HSCEngine.HSCEngine__NotAllowedToken.selector,
@@ -114,12 +116,12 @@ contract HSCEngineTest is Test {
         vm.stopPrank();
     }
 
-    function testCanDepositedCollateralAndGetAccountInfo()
+    function testCanDepositCollateralAndGetAccountInfo()
         public
         depositedCollateral
     {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = hscEngine
-            .getAccountInformation(USER);
+            .getAccountInformation(user);
 
         uint256 expectedDepositedAmount = hscEngine.getTokenAmountFromUsd(
             weth,
@@ -128,5 +130,13 @@ contract HSCEngineTest is Test {
 
         assertEq(totalDscMinted, 0);
         assertEq(expectedDepositedAmount, AMOUNT_COLLATERAL);
+    }
+
+    function testCanDepositCollateralWithoutMinting()
+        public
+        depositedCollateral
+    {
+        uint256 userBalance = hadesStableCoin.balanceOf(user);
+        assertEq(userBalance, 0);
     }
 }

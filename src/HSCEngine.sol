@@ -30,6 +30,12 @@ contract HSCEngine is ReentrancyGuard {
     error HSCEngine__HealthFactorOkay();
     error HSCEngine__HealthFactorNotImproved();
 
+    //////// TYPES ////////
+    using OracleLib for AggregatorV3Interface;
+
+    //////// IMMUTABLE VARIABLES ////////
+    HadesStableCoin private immutable _hsc;
+
     //////// STATE VARIABLES ////////
     uint256 private constant _ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant _PRECISION = 1e18;
@@ -45,9 +51,6 @@ contract HSCEngine is ReentrancyGuard {
     mapping(address user => uint256 amountHscMinted) private _hscMinted;
 
     address[] private _collateralTokens;
-
-    //////// IMMUTABLE VARIABLES ////////
-    HadesStableCoin private immutable _hsc;
 
     //////// EVENTS ////////
     event CollateralDeposited(
@@ -111,37 +114,6 @@ contract HSCEngine is ReentrancyGuard {
     }
 
     ////////
-    function depositCollateral(
-        address tokenCollateralAddress,
-        uint256 amountCollateral
-    )
-        public
-        moreThanZero(amountCollateral)
-        isAllowedToken(tokenCollateralAddress)
-        nonReentrant
-    {
-        _collateralDeposited[msg.sender][
-            tokenCollateralAddress
-        ] += amountCollateral;
-
-        emit CollateralDeposited(
-            msg.sender,
-            tokenCollateralAddress,
-            amountCollateral
-        );
-
-        bool success = IERC20(tokenCollateralAddress).transferFrom(
-            msg.sender,
-            address(this),
-            amountCollateral
-        );
-
-        if (!success) {
-            revert HSCEngine__TransferFailed();
-        }
-    }
-
-    ////////
     function redeemCollateralForHsc(
         address tokenCollateralAddress,
         uint256 amountCollateral,
@@ -174,18 +146,6 @@ contract HSCEngine is ReentrancyGuard {
             msg.sender
         );
         _revertIfHealthFactorIsBroken(msg.sender);
-    }
-
-    ////////
-    function mintHsc(
-        uint256 amountHscToMint
-    ) public moreThanZero(amountHscToMint) nonReentrant {
-        _hscMinted[msg.sender] += amountHscToMint;
-        _revertIfHealthFactorIsBroken(msg.sender);
-        bool minted = _hsc.mint(msg.sender, amountHscToMint);
-        if (!minted) {
-            revert HSCEngine__MintFailed();
-        }
     }
 
     ////////
@@ -233,6 +193,49 @@ contract HSCEngine is ReentrancyGuard {
         }
 
         _revertIfHealthFactorIsBroken(msg.sender);
+    }
+
+    //////// PUBLIC FUNCTIONS ////////
+    function depositCollateral(
+        address tokenCollateralAddress,
+        uint256 amountCollateral
+    )
+        public
+        moreThanZero(amountCollateral)
+        isAllowedToken(tokenCollateralAddress)
+        nonReentrant
+    {
+        _collateralDeposited[msg.sender][
+            tokenCollateralAddress
+        ] += amountCollateral;
+
+        emit CollateralDeposited(
+            msg.sender,
+            tokenCollateralAddress,
+            amountCollateral
+        );
+
+        bool success = IERC20(tokenCollateralAddress).transferFrom(
+            msg.sender,
+            address(this),
+            amountCollateral
+        );
+
+        if (!success) {
+            revert HSCEngine__TransferFailed();
+        }
+    }
+
+    ////////
+    function mintHsc(
+        uint256 amountHscToMint
+    ) public moreThanZero(amountHscToMint) nonReentrant {
+        _hscMinted[msg.sender] += amountHscToMint;
+        _revertIfHealthFactorIsBroken(msg.sender);
+        bool minted = _hsc.mint(msg.sender, amountHscToMint);
+        if (!minted) {
+            revert HSCEngine__MintFailed();
+        }
     }
 
     //////// PRIVATE FUNCTIONS ////////
@@ -301,6 +304,32 @@ contract HSCEngine is ReentrancyGuard {
             uint256 collateralValueInUsd
         ) = _getAccountInformation(user);
 
+        return _calculateHealthFactor(totalHscMinted, collateralValueInUsd);
+    }
+
+    ////////
+    function _getUsdValue(
+        address token,
+        uint256 amount
+    ) private view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            _tokenAddressToPriceFeedAddress[token]
+        );
+
+        (, int256 price, , , ) = priceFeed.latestRoundData();
+
+        uint256 value = ((uint256(price) * _ADDITIONAL_FEED_PRECISION) *
+            amount) / _PRECISION;
+
+        return value;
+    }
+
+    function _calculateHealthFactor(
+        uint256 totalHscMinted,
+        uint256 collateralValueInUsd
+    ) internal pure returns (uint256) {
+        if (totalHscMinted == 0) return type(uint256).max;
+
         uint256 collateralAdjustedForThreshold = (collateralValueInUsd *
             _LIQUIDATION_THRESHOLD) / _LIQUIDATION_PRECISION;
 
@@ -318,7 +347,14 @@ contract HSCEngine is ReentrancyGuard {
         }
     }
 
-    //////// PUBLIC/EXTERNAL VIEW FUNCTIONS ////////
+    //////// PUBLIC/EXTERNAL VIEW & PURE FUNCTIONS ////////
+    function calculateHealthFactor(
+        uint256 totalHscMinted,
+        uint256 collateralValueInUsd
+    ) external pure returns (uint256) {
+        return _calculateHealthFactor(totalHscMinted, collateralValueInUsd);
+    }
+
     function getTokenAmountFromUsd(
         address token,
         uint256 usdAmountInWei
@@ -354,16 +390,7 @@ contract HSCEngine is ReentrancyGuard {
         address token,
         uint256 amount
     ) public view returns (uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(
-            _tokenAddressToPriceFeedAddress[token]
-        );
-
-        (, int256 price, , , ) = priceFeed.latestRoundData();
-
-        uint256 value = ((uint256(price) * _ADDITIONAL_FEED_PRECISION) *
-            amount) / _PRECISION;
-
-        return value;
+        return _getUsdValue(token, amount);
     }
 
     ////////
@@ -375,5 +402,65 @@ contract HSCEngine is ReentrancyGuard {
         returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
     {
         return _getAccountInformation(user);
+    }
+
+    ////////
+    function getCollateralBalanceOfUser(
+        address user,
+        address token
+    ) external view returns (uint256) {
+        return _collateralDeposited[user][token];
+    }
+
+    ////////
+    function getPrecision() external pure returns (uint256) {
+        return _PRECISION;
+    }
+
+    ////////
+    function getAdditionalFeedPrecision() external pure returns (uint256) {
+        return _ADDITIONAL_FEED_PRECISION;
+    }
+
+    ////////
+    function getLiquidationThreshold() external pure returns (uint256) {
+        return _LIQUIDATION_THRESHOLD;
+    }
+
+    ////////
+    function getLiquidationBonus() external pure returns (uint256) {
+        return _LIQUIDATION_BONUS;
+    }
+
+    ////////
+    function getLiquidationPrecision() external pure returns (uint256) {
+        return _LIQUIDATION_PRECISION;
+    }
+
+    ////////
+    function getMinHealthFactor() external pure returns (uint256) {
+        return _MIN_HEALTH_FACTOR;
+    }
+
+    ////////
+    function getCollateralTokens() external view returns (address[] memory) {
+        return _collateralTokens;
+    }
+
+    ////////
+    function getHsc() external view returns (address) {
+        return address(_hsc);
+    }
+
+    ////////
+    function getCollateralTokenPriceFeed(
+        address token
+    ) external view returns (address) {
+        return _tokenAddressToPriceFeedAddress[token];
+    }
+
+    ////////
+    function getHealthFactor(address user) external view returns (uint256) {
+        return _healthFactor(user);
     }
 }

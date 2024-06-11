@@ -14,15 +14,15 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  * Collateral Type: Crypto
  */
 contract HadesStableCoin is ERC20Burnable, Ownable {
-    /// ERRORS ///
+    //////// ERRORS ////////
     error HadesStableCoin__MustBeMoreThanZero();
     error HadesStableCoin__BurnAmountExceedsBalance();
     error HadesStableCoin__NotZeroAddress();
 
-    /// CONSTRUCTOR ///
+    //////// CONSTRUCTOR ////////
     constructor() ERC20("HadesStableCoin", "HSC") {}
 
-    /// FUNCTIONS ///
+    //////// FUNCTIONS ////////
     function burn(uint256 _amount) public override onlyOwner {
         uint256 balance = balanceOf(msg.sender);
         if (_amount <= 0) {
@@ -34,6 +34,7 @@ contract HadesStableCoin is ERC20Burnable, Ownable {
         super.burn(_amount);
     }
 
+    ////////
     function mint(
         address _to,
         uint256 _amount
