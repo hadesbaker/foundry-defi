@@ -11,12 +11,11 @@ import {HSCEngine, AggregatorV3Interface} from "../../src/HSCEngine.sol";
 import {HadesStableCoin} from "../../src/HadesStableCoin.sol";
 
 contract Handler is Test {
-    // using EnumerableSet for EnumerableSet.AddressSet;
-    // using Randomish for EnumerableSet.AddressSet;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
-    // Deployed contracts to interact with
     HSCEngine public hscEngine;
     HadesStableCoin public hadesStableCoin;
+
     MockV3Aggregator public ethUsdPriceFeed;
     MockV3Aggregator public btcUsdPriceFeed;
     ERC20Mock public weth;
@@ -41,11 +40,7 @@ contract Handler is Test {
         );
     }
 
-    // FUNCTOINS TO INTERACT WITH
-
-    ///////////////
-    // DSCEngine //
-    ///////////////
+    //////// HSCEngine ////////
     function mintAndDepositCollateral(
         uint256 collateralSeed,
         uint256 amountCollateral
@@ -56,64 +51,64 @@ contract Handler is Test {
         hscEngine.depositCollateral(address(collateral), amountCollateral);
     }
 
-    function redeemCollateral(
-        uint256 collateralSeed,
-        uint256 amountCollateral
-    ) public {
-        amountCollateral = bound(amountCollateral, 0, MAX_DEPOSIT_SIZE);
-        ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
-        hscEngine.redeemCollateral(address(collateral), amountCollateral);
-    }
+    // ////////
+    // function redeemCollateral(
+    //     uint256 collateralSeed,
+    //     uint256 amountCollateral
+    // ) public {
+    //     amountCollateral = bound(amountCollateral, 0, MAX_DEPOSIT_SIZE);
+    //     ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
+    //     hscEngine.redeemCollateral(address(collateral), amountCollateral);
+    // }
 
-    function burnHsc(uint256 amountHsc) public {
-        amountHsc = bound(amountHsc, 0, hadesStableCoin.balanceOf(msg.sender));
-        hadesStableCoin.burn(amountHsc);
-    }
+    // ////////
+    // function burnHsc(uint256 amountHsc) public {
+    //     amountHsc = bound(amountHsc, 0, hadesStableCoin.balanceOf(msg.sender));
+    //     hadesStableCoin.burn(amountHsc);
+    // }
 
-    function mintDsc(uint256 amountHsc) public {
-        amountHsc = bound(amountHsc, 0, MAX_DEPOSIT_SIZE);
-        hadesStableCoin.mint(msg.sender, amountHsc);
-    }
+    // ////////
+    // function mintDsc(uint256 amountHsc) public {
+    //     amountHsc = bound(amountHsc, 0, MAX_DEPOSIT_SIZE);
+    //     hadesStableCoin.mint(msg.sender, amountHsc);
+    // }
 
-    function liquidate(
-        uint256 collateralSeed,
-        address userToBeLiquidated,
-        uint256 debtToCover
-    ) public {
-        ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
-        hscEngine.liquidate(
-            address(collateral),
-            userToBeLiquidated,
-            debtToCover
-        );
-    }
+    // ////////
+    // function liquidate(
+    //     uint256 collateralSeed,
+    //     address userToBeLiquidated,
+    //     uint256 debtToCover
+    // ) public {
+    //     ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
+    //     hscEngine.liquidate(
+    //         address(collateral),
+    //         userToBeLiquidated,
+    //         debtToCover
+    //     );
+    // }
 
-    /////////////////////////////
-    // DecentralizedStableCoin //
-    /////////////////////////////
-    function transferHsc(uint256 amountHsc, address to) public {
-        amountHsc = bound(amountHsc, 0, hadesStableCoin.balanceOf(msg.sender));
-        vm.prank(msg.sender);
-        hadesStableCoin.transfer(to, amountHsc);
-    }
+    // //////// HadesStableCoin ////////
+    // function transferHsc(uint256 amountHsc, address to) public {
+    //     amountHsc = bound(amountHsc, 0, hadesStableCoin.balanceOf(msg.sender));
+    //     vm.prank(msg.sender);
+    //     hadesStableCoin.transfer(to, amountHsc);
+    // }
 
-    /////////////////////////////
-    // Aggregator //
-    /////////////////////////////
-    function updateCollateralPrice(
-        uint128,
-        /* newPrice */ uint256 collateralSeed
-    ) public {
-        int256 intNewPrice = 0;
-        ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
-        MockV3Aggregator priceFeed = MockV3Aggregator(
-            hscEngine.getCollateralTokenPriceFeed(address(collateral))
-        );
+    // //////// Aggregator ////////
+    // function updateCollateralPrice(
+    //     uint128,
+    //     /* newPrice */ uint256 collateralSeed
+    // ) public {
+    //     int256 intNewPrice = 0;
+    //     ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
+    //     MockV3Aggregator priceFeed = MockV3Aggregator(
+    //         hscEngine.getCollateralTokenPriceFeed(address(collateral))
+    //     );
 
-        priceFeed.updateAnswer(intNewPrice);
-    }
+    //     priceFeed.updateAnswer(intNewPrice);
+    // }
 
-    /// Helper Functions
+    //////// Helper Functions ////////
     function _getCollateralFromSeed(
         uint256 collateralSeed
     ) private view returns (ERC20Mock) {
@@ -122,11 +117,5 @@ contract Handler is Test {
         } else {
             return wbtc;
         }
-    }
-
-    function callSummary() external view {
-        console.log("Weth total deposited", weth.balanceOf(address(hscEngine)));
-        console.log("Wbtc total deposited", wbtc.balanceOf(address(hscEngine)));
-        console.log("Total supply of DSC", hadesStableCoin.totalSupply());
     }
 }

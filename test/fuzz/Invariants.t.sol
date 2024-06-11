@@ -12,11 +12,15 @@ import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 
+import {Handler} from "./Handler.t.sol";
+
 contract Invariants is StdInvariant, Test {
     DeployHSC public deployer;
     HadesStableCoin public hadesStableCoin;
     HSCEngine public hscEngine;
     HelperConfig public helperConfig;
+
+    Handler public handler;
 
     address public ethUsdPriceFeed;
     address public btcUsdPriceFeed;
@@ -26,7 +30,8 @@ contract Invariants is StdInvariant, Test {
     function setUp() external {
         deployer = new DeployHSC();
         (hadesStableCoin, hscEngine, helperConfig) = deployer.run();
-        targetContract(address(hscEngine));
+        handler = new Handler(hscEngine, hadesStableCoin);
+        targetContract(address(handler));
 
         (ethUsdPriceFeed, btcUsdPriceFeed, weth, wbtc, ) = helperConfig
             .activeNetworkConfig();
@@ -49,5 +54,16 @@ contract Invariants is StdInvariant, Test {
         console.log("totalSupply: %s", totalSupply);
 
         assert(wethValue + wbtcValue >= totalSupply);
+    }
+
+    function invariant_gettersCantRevert() public view {
+        hscEngine.getAdditionalFeedPrecision();
+        hscEngine.getCollateralTokens();
+        hscEngine.getLiquidationBonus();
+        hscEngine.getLiquidationBonus();
+        hscEngine.getLiquidationThreshold();
+        hscEngine.getMinHealthFactor();
+        hscEngine.getPrecision();
+        hscEngine.getHsc();
     }
 }
