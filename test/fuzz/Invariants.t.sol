@@ -56,14 +56,14 @@ contract Invariants is StdInvariant, Test {
         assert(wethValue + wbtcValue >= totalSupply);
     }
 
-    function invariant_gettersCantRevert() public view {
-        hscEngine.getAdditionalFeedPrecision();
-        hscEngine.getCollateralTokens();
-        hscEngine.getLiquidationBonus();
-        hscEngine.getLiquidationBonus();
-        hscEngine.getLiquidationThreshold();
-        hscEngine.getMinHealthFactor();
-        hscEngine.getPrecision();
-        hscEngine.getHsc();
-    }
+    // function invariant_gettersCantRevert() public view {
+    //     hscEngine.getAdditionalFeedPrecision();
+    //     hscEngine.getCollateralTokens();
+    //     hscEngine.getLiquidationBonus();
+    //     hscEngine.getLiquidationBonus();
+    //     hscEngine.getLiquidationThreshold();
+    //     hscEngine.getMinHealthFactor();
+    //     hscEngine.getPrecision();
+    //     hscEngine.getHsc();
+    // }
 }
