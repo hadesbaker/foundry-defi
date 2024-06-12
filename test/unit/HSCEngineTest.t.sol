@@ -51,8 +51,8 @@ contract HSCEngineTest is StdCheats, Test {
             vm.deal(user, STARTING_USER_BALANCE);
         }
 
-        // ERC20Mock(weth).mint(user, STARTING_USER_BALANCE);
-        // ERC20Mock(wbtc).mint(user, STARTING_USER_BALANCE);
+        ERC20Mock(weth).mint(user, STARTING_USER_BALANCE);
+        ERC20Mock(wbtc).mint(user, STARTING_USER_BALANCE);
     }
 
     //////// CONSTRUCTOR TESTS ////////

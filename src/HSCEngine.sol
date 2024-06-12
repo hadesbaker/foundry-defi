@@ -316,7 +316,7 @@ contract HSCEngine is ReentrancyGuard {
             _tokenAddressToPriceFeedAddress[token]
         );
 
-        (, int256 price, , , ) = priceFeed.latestRoundData();
+        (, int256 price, , , ) = priceFeed.priceCheck();
 
         uint256 value = ((uint256(price) * _ADDITIONAL_FEED_PRECISION) *
             amount) / _PRECISION;
@@ -363,7 +363,7 @@ contract HSCEngine is ReentrancyGuard {
             _tokenAddressToPriceFeedAddress[token]
         );
 
-        (, int256 price, , , ) = priceFeed.latestRoundData();
+        (, int256 price, , , ) = priceFeed.priceCheck();
 
         uint256 tokenAmount = ((usdAmountInWei * _PRECISION) /
             (uint256(price) * _ADDITIONAL_FEED_PRECISION));
@@ -393,7 +393,7 @@ contract HSCEngine is ReentrancyGuard {
         return _getUsdValue(token, amount);
     }
 
-    ////////
+    //////// GETTER FUNCTIONS ////////
     function getAccountInformation(
         address user
     )

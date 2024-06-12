@@ -30,21 +30,19 @@ contract Invariants is StdInvariant, Test {
     function setUp() external {
         deployer = new DeployHSC();
         (hadesStableCoin, hscEngine, helperConfig) = deployer.run();
-        handler = new Handler(hscEngine, hadesStableCoin);
-        targetContract(address(handler));
 
         (ethUsdPriceFeed, btcUsdPriceFeed, weth, wbtc, ) = helperConfig
             .activeNetworkConfig();
+
+        handler = new Handler(hscEngine, hadesStableCoin);
+        targetContract(address(handler));
     }
 
     function invariant_protocolMustHaveMoreValueThanTotalSupply() public view {
         uint256 totalSupply = hadesStableCoin.totalSupply();
-        uint256 totalWethDeposited = ERC20Mock(weth).balanceOf(
-            address(hscEngine)
-        );
-        uint256 totalWbtcDeposited = ERC20Mock(wbtc).balanceOf(
-            address(hscEngine)
-        );
+
+        uint256 totalWethDeposited = IERC20(weth).balanceOf(address(hscEngine));
+        uint256 totalWbtcDeposited = IERC20(wbtc).balanceOf(address(hscEngine));
 
         uint256 wethValue = hscEngine.getUsdValue(weth, totalWethDeposited);
         uint256 wbtcValue = hscEngine.getUsdValue(wbtc, totalWbtcDeposited);
@@ -56,14 +54,13 @@ contract Invariants is StdInvariant, Test {
         assert(wethValue + wbtcValue >= totalSupply);
     }
 
-    // function invariant_gettersCantRevert() public view {
-    //     hscEngine.getAdditionalFeedPrecision();
-    //     hscEngine.getCollateralTokens();
-    //     hscEngine.getLiquidationBonus();
-    //     hscEngine.getLiquidationBonus();
-    //     hscEngine.getLiquidationThreshold();
-    //     hscEngine.getMinHealthFactor();
-    //     hscEngine.getPrecision();
-    //     hscEngine.getHsc();
-    // }
+    function invariant_gettersCantRevert() public view {
+        hscEngine.getAdditionalFeedPrecision();
+        hscEngine.getCollateralTokens();
+        hscEngine.getLiquidationBonus();
+        hscEngine.getLiquidationThreshold();
+        hscEngine.getMinHealthFactor();
+        hscEngine.getPrecision();
+        hscEngine.getHsc();
+    }
 }
